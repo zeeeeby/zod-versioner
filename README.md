@@ -11,6 +11,18 @@ A library for managing data versioning using Zod schemas.
 
 ## Quick start
 
+Install the package:
+
+```bash
+npm install zod-versioner
+# or
+yarn add zod-versioner
+# or
+pnpm add zod-versioner
+```
+
+Note: This package requires `zod` as a peer dependency.
+
 ```typescript
 import { Versioner } from "./versioner"
 import z from "zod"
@@ -30,17 +42,18 @@ const SchemaV2 = SchemaV1.extend({
 const versioner = Versioner()
 	.version(SchemaV1)
 	.version(SchemaV2, (data) => {
-        // typescript automatically infers type data = SchemaV1
-        // typescript automatically infers return type = SchemaV2
+        // typescript infers type data = SchemaV1
+        // typescript infers return type = SchemaV2
 		return {
 			...data,
 			content: "default content",
 		}
 	})
 
-const LatestSchema = versioner.latestSchema() // typescript automatically infers type equal to latest schema -- the last registered schema in versioner instance
+// typescript infers type equal to latest schema -- the last registered schema in versioner instance
+const LatestSchema = versioner.latestSchema() 
 
-// Upgrade data to the latest version
+
 const result = versioner.safeUpgradeToLatest({
 	v: 1,
 	title: "Hello",
@@ -50,41 +63,41 @@ const result = versioner.safeUpgradeToLatest({
 
 ## API
 
-### Versioner()
+#### `Versioner()`
 
 Creates a new versioner instance.
 
-### .latestSchema()
+#### `.latestSchema()`
 
 Returns the typed schema of the latest registered version.
 
 
-### .latestVersion()
+#### `.latestVersion()`
 
 Returns the literal number of the latest registered version.
 
-### .version(schema, migrationFn)
+#### `.version(schema, migrationFn)`
 
 Registers a new version schema:
 
 -   `schema`: Zod schema with required field `v: z.ZodLiteral<number>`
 -   `migrationFn`: Function to transform data from previous version
 
-### .safeUpgradeToLatest(data)
+#### `.safeUpgradeToLatest(data)`
 
 Safely upgrades data to the latest version. Returns `ZodSafeParseResult`
 
-### .safeUpgradeTo(data, version)
+#### `.safeUpgradeTo(data, version)`
 
 Safely upgrades data to the specified version. Returns `ZodSafeParseResult`
 
 Typescript only allows versions that are registered in versioner instance
 
-### .isLatest(data)
+#### `.isLatest(data)`
 
 Checks if data matches the latest version schema.
 
-### .hasLatestStructure(data)
+#### `.hasLatestStructure(data)`
 
 Checks if data structure matches the latest version schema (ignoring version value and extra fields).
 
