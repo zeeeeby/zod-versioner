@@ -11,7 +11,7 @@ Type-safe data versioning library using Zod schemas
 
 ## Quick start
 
-Install the package:
+Install:
 
 ```bash
 npm install zod-versioner
@@ -42,7 +42,7 @@ const SchemaV2 = SchemaV1.extend({
 const versioner = Versioner()
 	.version(SchemaV1)
 	.version(SchemaV2, (data) => {
-        // typescript infers type data = SchemaV1
+        // typescript infers data type = SchemaV1
         // typescript infers return type = SchemaV2
 		return {
 			...data,
