@@ -99,7 +99,7 @@ Checks if data matches the latest version schema.
 
 #### `.hasLatestStructure(data)`
 
-Checks if data structure matches the latest version schema (ignoring version value and extra fields).
+Checks if data structure matches the latest version schema (ignoring actual version value and extra fields).
 
 ## Error Handling
 
