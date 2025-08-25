@@ -1,6 +1,7 @@
 import { isInvalidVersionType, isUnsupportedVersion, Versioner } from '../src'
 import { describe, it, expect } from 'vitest'
 import z from 'zod'
+import { Equal, Expect } from './test-utils'
 
 describe('versioner', () => {
     it('should migrate from v1 to v2', () => {
@@ -24,6 +25,15 @@ describe('versioner', () => {
         const input = { v: 1, title: 'Title' }
         const output = m.safeUpgradeToLatest(input)
         expect(output).toEqual({ success: true, data: { v: 2, title: 'Title', content: 'migrated' } })
+
+        type Output = z.infer<typeof SchemaV2>
+
+        type cases = [
+            Expect<Equal<
+                ReturnType<typeof m.safeUpgradeToLatest>['data'],
+                Output | undefined
+            >>,
+        ]
     })
 
     it('should prefer version call order rather than version number', () => {
@@ -113,6 +123,17 @@ describe('versioner', () => {
 
         expect(m.latestVersion()).toBe(2)
         expect(m.latestSchema()).toBe(SchemaV2)
+
+        type cases = [
+            Expect<Equal<
+                ReturnType<typeof m.latestSchema>,
+                typeof SchemaV2
+            >>,
+            Expect<Equal<
+                ReturnType<typeof m.latestVersion>,
+                2
+            >>
+        ]
     })
 
     it("should migrate from latest version without changes", () => {
