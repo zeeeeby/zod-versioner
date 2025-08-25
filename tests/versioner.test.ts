@@ -2,7 +2,7 @@ import { isInvalidVersionType, isUnsupportedVersion, Versioner } from '../src'
 import { describe, it, expect } from 'vitest'
 import z from 'zod'
 
-describe('migrator', () => {
+describe('versioner', () => {
     it('should migrate from v1 to v2', () => {
         const SchemaV1 = z.object({
             v: z.literal(1),

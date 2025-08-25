@@ -21,7 +21,7 @@ yarn add zod-versioner
 pnpm add zod-versioner
 ```
 
-Note: This package requires `zod` as a peer dependency.
+Usage:
 
 ```typescript
 import { Versioner } from "./versioner"
@@ -50,7 +50,7 @@ const versioner = Versioner()
 		}
 	})
 
-// typescript infers type equal to latest schema -- the last registered schema in versioner instance
+// typescript infers type equal to the last registered schema in versioner instance
 const LatestSchema = versioner.latestSchema() 
 
 
