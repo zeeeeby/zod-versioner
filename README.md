@@ -81,7 +81,7 @@ Returns the literal number of the latest registered version.
 Registers a new version schema:
 
 -   `schema`: Zod schema with required field `v: z.ZodLiteral<number>`
--   `migrationFn`: Function to transform data from previous version
+-   `migrationFn`: Migration function with fully inferred parameter and return types 
 
 #### `.safeUpgradeToLatest(data)`
 
@@ -91,7 +91,7 @@ Safely upgrades data to the latest version. Returns `ZodSafeParseResult`
 
 Safely upgrades data to the specified version. Returns `ZodSafeParseResult`
 
-Typescript only allows versions that are registered in versioner instance
+> Typescript only allows versions that are registered in versioner instance
 
 #### `.isLatest(data)`
 
