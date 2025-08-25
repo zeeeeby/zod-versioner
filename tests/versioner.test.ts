@@ -332,6 +332,29 @@ describe('versioner', () => {
         expect(m.isLatest({ v: 1, title: 'Title' })).toBe(false)
         expect(m.isLatest({})).toBe(false)
     })
+
+    it("should enforce schema version over migrationFn version", () => {
+        const SchemaV1 = z.object({
+            v: z.literal(1),
+        })
+        const SchemaV2 = SchemaV1.extend({
+            v: z.literal(2),
+        })
+        const m = Versioner()
+            .version(SchemaV1)
+            .version(SchemaV2, (data) => {
+                return {
+                    ...data,
+                    v: 34
+                }
+            })
+
+        const result = m.safeUpgradeToLatest({ v: 1 })
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data).toEqual({ v: 2 })
+        }
+    })
 })
 
 
@@ -390,4 +413,5 @@ describe('isInvalidVersionType', () => {
             expect(isInvalidVersionType(result.error)).toBe(false)
         }
     })
+
 })
