@@ -1,6 +1,6 @@
 # zod-versioner
 
-A library for managing data versioning using Zod schemas.
+Type-safe data versioning library using Zod schemas
 
 ## Features
 
