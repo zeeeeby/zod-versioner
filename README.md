@@ -24,7 +24,7 @@ pnpm add zod-versioner
 Usage:
 
 ```typescript
-import { Versioner } from "./versioner"
+import { Versioner } from "zod-versioner"
 import z from "zod"
 
 // Define schemas for different versions
