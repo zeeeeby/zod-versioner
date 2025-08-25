@@ -80,7 +80,7 @@ Returns the literal number of the latest registered version.
 
 Registers a new version schema:
 
--   `schema`: Zod schema with required field `v: z.ZodLiteral<number>`
+-   `schema`: Zod object schema with required field `v: z.ZodLiteral<number>`
 -   `migrationFn`: Migration function with fully inferred parameter and return types 
 
 #### `.safeUpgradeToLatest(data)`
