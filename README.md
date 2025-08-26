@@ -4,7 +4,7 @@ Type-safe data versioning library using Zod schemas
 
 ## Features
 
--   Type-safe data migration between versions
+-   Elegant, type-safe data migration between versions
 -   Data structure validation using Zod
 -   Support for sequential migrations
 -   Safe upgrade to latest or specific version
