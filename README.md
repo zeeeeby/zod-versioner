@@ -116,3 +116,7 @@ if (!result.success) {
 	}
 }
 ```
+
+## More Examples
+
+For more usage examples and scenarios, check out [test suite](tests/versioner.test.ts).
