@@ -109,10 +109,12 @@ const migrateTo = (data: unknown, handlers: Handler[]): z.ZodSafeParseResult<any
     let currentData = parsedData.data;
     let currentVersion = version;
     let p = 0
+    let currentSchema = handlers[p].schema
 
     // Skip previous versions
     while (p < handlers.length && handlers[p].v !== currentVersion) {
         p++
+        currentSchema = handlers[p].schema
     }
 
     for (let i = p + 1; i < handlers.length; i++) {
@@ -125,9 +127,10 @@ const migrateTo = (data: unknown, handlers: Handler[]): z.ZodSafeParseResult<any
         if (!result.success) return result
 
         currentData = result.data
+        currentSchema = handler.schema
     }
 
-    return { success: true, data: currentData }
+    return currentSchema.safeParse(currentData)
 }
 
 export const isInvalidVersionType = (error: z.ZodError<any>) => {

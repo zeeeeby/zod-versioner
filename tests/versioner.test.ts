@@ -101,6 +101,9 @@ describe('versioner', () => {
 
         const result2 = m.safeUpgradeToLatest({ v: "1" })
         expect(result2.success).toBe(false)
+
+        const result3 = m.safeUpgradeToLatest({ v: 1, test: 3 })
+        expect(result3.success).toBe(false)
     })
 
     it("should have correct latestVersion and latestSchema", () => {
@@ -266,6 +269,17 @@ describe('versioner', () => {
                 v: 2,
                 title: 'Title',
                 content: 'migrated to v2',
+            }
+        })
+
+        const input2 = { v: 1, title: 'Title' }
+        const output2 = m.safeUpgradeTo(input2, 3)
+        expect(output2).toEqual({
+            success: true, data: {
+                v: 3,
+                title: 'Title',
+                content: 'migrated to v2',
+                extra: 'migrated to v3',
             }
         })
     })
