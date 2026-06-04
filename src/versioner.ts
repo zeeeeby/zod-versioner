@@ -12,12 +12,14 @@ type VersionerSelf = {
     handlers: Handler[],
     latestVersion: number,
     latestSchema: z.ZodObject<{ v: z.ZodLiteral<number> }>
+    versionToIndex: Map<number, number>
 }
 export const Versioner = (): VersionerType => {
     const self: VersionerSelf = {
         handlers: [],
         latestVersion: 0,
-        latestSchema: undefined as any
+        latestSchema: undefined as any,
+        versionToIndex: new Map()
     }
 
 
@@ -46,11 +48,14 @@ export const Versioner = (): VersionerType => {
                     return { ...res, v: ver }
                 } : undefined
             });
+
+            self.versionToIndex.set(ver, self.handlers.length - 1);
+
             return methods as any
         },
         latestVersion: () => self.latestVersion,
         safeUpgradeToLatest: (data) => {
-            return migrateTo(data, self.handlers) as any
+            return migrateTo(data, self.handlers, self.versionToIndex) as any
         },
         safeUpgradeTo: (data, targetVersion) => {
             const target = self.handlers.find(h => h.v === targetVersion)
@@ -62,7 +67,7 @@ export const Versioner = (): VersionerType => {
             }
             const targetIndex = self.handlers.indexOf(target)
             const handlers = self.handlers.slice(0, targetIndex + 1)
-            return migrateTo(data, handlers) as any
+            return migrateTo(data, handlers, self.versionToIndex) as any
         },
         isLatest: (data: unknown): data is z.infer<typeof self.latestSchema> => {
             return self.latestSchema.safeParse(data).success
@@ -83,17 +88,25 @@ export const Versioner = (): VersionerType => {
 
 }
 
-const migrateTo = (data: unknown, handlers: Handler[]): z.ZodSafeParseResult<any> => {
+const migrateTo = (data: unknown, handlers: Handler[], versionToIndex: Map<number, number>): z.ZodSafeParseResult<any> => {
     const parsedData = VersionSchema.safeParse(data)
     if (!parsedData.success) {
         return parsedData
     }
 
     const version = parsedData.data.v;
+    const lastIndex = handlers.length - 1;
+    const latestHandler = handlers[lastIndex];
 
-    const supportedVersions = handlers.map(h => h.v);
+    if (version === latestHandler.v) {
+        return latestHandler.schema.safeParse(data);
+    }
 
-    if (supportedVersions.indexOf(version) === -1) {
+    const startIndex = versionToIndex.get(version);
+
+
+    if (startIndex == undefined || startIndex > lastIndex) {
+        const supportedVersions = handlers.map(h => h.v);
         return {
             success: false,
             error: new z.ZodError([{
@@ -107,17 +120,9 @@ const migrateTo = (data: unknown, handlers: Handler[]): z.ZodSafeParseResult<any
     }
 
     let currentData = parsedData.data;
-    let currentVersion = version;
-    let p = 0
-    let currentSchema = handlers[p].schema
+    let lastResult: z.ZodSafeParseResult<any> | undefined;
 
-    // Skip previous versions
-    while (p < handlers.length && handlers[p].v !== currentVersion) {
-        p++
-        currentSchema = handlers[p].schema
-    }
-
-    for (let i = p + 1; i < handlers.length; i++) {
+    for (let i = startIndex + 1; i <= lastIndex; i++) {
         const handler = handlers[i];
 
         if (handler.up) {
@@ -126,11 +131,16 @@ const migrateTo = (data: unknown, handlers: Handler[]): z.ZodSafeParseResult<any
         const result = handler.schema.safeParse(currentData);
         if (!result.success) return result
 
+        if (i === handlers.length - 1) {
+            return result;
+        }
+
         currentData = result.data
-        currentSchema = handler.schema
+        lastResult = result;
+
     }
 
-    return currentSchema.safeParse(currentData)
+    return lastResult!;
 }
 
 export const isInvalidVersionType = (error: z.ZodError<any>) => {
