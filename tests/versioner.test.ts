@@ -1,9 +1,64 @@
 import { isInvalidVersionType, isUnsupportedVersion, Versioner } from '../src'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import z from 'zod'
 import { Equal, Expect } from './test-utils'
 
 describe('versioner', () => {
+    it.each(['latest', 'target'] as const)('returns a ZodError with the failing transition and cause (%s)', method => {
+        const cause = new TypeError('cannot migrate title')
+        const afterFailure = vi.fn(data => data)
+        const schema = z.object({ v: z.literal(1), title: z.string() })
+        const versioner = Versioner()
+            .version(schema)
+            .version(schema.extend({ v: z.literal(2) }), data => data)
+            .version(schema.extend({ v: z.literal(3) }), () => { throw cause })
+            .version(schema.extend({ v: z.literal(4) }), afterFailure)
+        const result = method === 'latest'
+            ? versioner.safeUpgradeToLatest({ v: 1, title: 'Title' })
+            : versioner.safeUpgradeTo({ v: 1, title: 'Title' }, 4)
+        expect(result.success).toBe(false)
+        if (result.success) throw new Error('Expected migration failure')
+        expect(result.error).toBeInstanceOf(z.ZodError)
+        expect(result.error.issues).toMatchObject([{
+            code: 'custom', path: [], params: { fromVersion: 2, toVersion: 3 },
+            message: 'Migration from version 2 to 3 failed: cannot migrate title',
+        }])
+        expect(Object.getOwnPropertyDescriptor(result.error, 'cause')?.value).toBe(cause)
+        expect(isInvalidVersionType(result.error)).toBe(false)
+        expect(isUnsupportedVersion(result.error)).toBe(false)
+        expect(afterFailure).not.toHaveBeenCalled()
+        expect(versioner.safeUpgradeTo({ v: 1, title: 'Title' }, 2)).toEqual({ success: true, data: { v: 2, title: 'Title' } })
+    })
+
+    it.each(['failure', null, { reason: 'failure' }])('handles non-Error thrown values: %j', cause => {
+        const schema = z.object({ v: z.literal(1) })
+        const versioner = Versioner().version(schema)
+            .version(schema.extend({ v: z.literal(2) }), () => { throw cause })
+        const result = versioner.safeUpgradeToLatest({ v: 1 })
+        expect(result.success).toBe(false)
+        if (result.success) throw new Error('Expected migration failure')
+        expect(result.error).toBeInstanceOf(z.ZodError)
+        expect(Object.getOwnPropertyDescriptor(result.error, 'cause')?.value).toBe(cause)
+    })
+
+    it('catches exceptions in current-version schema parsing and malformed source migrations', () => {
+        const schema = z.object({ v: z.literal(1), title: z.string() })
+        const versioner = Versioner().version(schema)
+            .version(schema.extend({ v: z.literal(2), title: z.string().transform((): string => { throw new Error('transform failed') }) }), data => ({ ...data, title: data.title.toUpperCase() }))
+        expect(versioner.safeUpgradeToLatest({ v: 1, title: null }).success).toBe(false)
+        expect(versioner.safeUpgradeToLatest({ v: 2, title: 'Title' })).toMatchObject({ success: false, error: { issues: [{ code: 'custom' }] } })
+        expect(versioner.safeUpgradeTo({ v: 2, title: 'Title' }, 2).success).toBe(false)
+    })
+
+    it('returns a ZodError for an unregistered target version', () => {
+        const versioner = Versioner().version(z.object({ v: z.literal(1) }))
+        // @ts-expect-error Runtime input can bypass the target-version union.
+        const result = versioner.safeUpgradeTo({ v: 1 }, 99)
+        expect(result.success).toBe(false)
+        if (result.success) throw new Error('Expected unsupported target')
+        expect(result.error).toBeInstanceOf(z.ZodError)
+        expect(isUnsupportedVersion(result.error)).toBe(true)
+    })
     it('should migrate from v1 to v2', () => {
         const SchemaV1 = z.object({
             v: z.literal(1),

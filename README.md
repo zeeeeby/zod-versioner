@@ -103,6 +103,12 @@ Checks if data structure matches the latest version schema (ignoring actual vers
 
 ## Error Handling
 
+Both `safeUpgradeToLatest` and `safeUpgradeTo` return `{ success: false, error: ZodError }`
+when a migration callback or schema parser throws. The error contains a `custom` issue
+with `params.fromVersion` and `params.toVersion` identifying the failing transition
+(when known), and a non-enumerable `cause` retaining the original thrown value.
+Later migration steps are not executed. Ordinary validation errors retain their Zod issues.
+
 ```typescript
 import { isInvalidVersionType, isUnsupportedVersion } from "./versioner"
 

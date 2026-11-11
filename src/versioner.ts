@@ -62,7 +62,12 @@ export const Versioner = (): VersionerType => {
             if (!target) {
                 return {
                     success: false,
-                    error: new Error(`Target version ${targetVersion} is not registered. Supported versions: ${self.handlers.map(h => h.v).join(", ")}`)
+                    error: new z.ZodError([{
+                        code: "invalid_value",
+                        path: ["v"],
+                        message: `Target version ${targetVersion} is not registered. Supported versions: ${self.handlers.map(h => h.v).join(", ")}`,
+                        values: self.handlers.map(h => h.v),
+                    }])
                 }
             }
             const targetIndex = self.handlers.indexOf(target)
@@ -89,58 +94,60 @@ export const Versioner = (): VersionerType => {
 }
 
 const migrateTo = (data: unknown, handlers: Handler[], versionToIndex: Map<number, number>): z.ZodSafeParseResult<any> => {
-    const parsedData = VersionSchema.safeParse(data)
-    if (!parsedData.success) {
-        return parsedData
-    }
+    let fromVersion: number | undefined;
+    let toVersion: number | undefined;
+    try {
+        const parsedData = VersionSchema.safeParse(data)
+        if (!parsedData.success) return parsedData
 
-    const version = parsedData.data.v;
-    const lastIndex = handlers.length - 1;
-    const latestHandler = handlers[lastIndex];
+        const version = parsedData.data.v;
+        const lastIndex = handlers.length - 1;
+        const latestHandler = handlers[lastIndex];
+        fromVersion = version;
+        toVersion = latestHandler.v;
 
-    if (version === latestHandler.v) {
-        return latestHandler.schema.safeParse(data);
-    }
+        if (version === latestHandler.v) return latestHandler.schema.safeParse(data);
 
-    const startIndex = versionToIndex.get(version);
-
-
-    if (startIndex == undefined || startIndex > lastIndex) {
-        const supportedVersions = handlers.map(h => h.v);
-        return {
-            success: false,
-            error: new z.ZodError([{
-                code: "invalid_value",
-                path: ["v"],
-                message: `Invalid version ${version}, expected one of: ${supportedVersions.join(", ")}`,
-                input: parsedData.data,
-                values: supportedVersions,
-            }])
-        }
-    }
-
-    let currentData = parsedData.data;
-    let lastResult: z.ZodSafeParseResult<any> | undefined;
-
-    for (let i = startIndex + 1; i <= lastIndex; i++) {
-        const handler = handlers[i];
-
-        if (handler.up) {
-            currentData = handler.up(currentData);
-        }
-        const result = handler.schema.safeParse(currentData);
-        if (!result.success) return result
-
-        if (i === handlers.length - 1) {
-            return result;
+        const startIndex = versionToIndex.get(version);
+        if (startIndex == undefined || startIndex > lastIndex) {
+            const supportedVersions = handlers.map(h => h.v);
+            return {
+                success: false,
+                error: new z.ZodError([{
+                    code: "invalid_value",
+                    path: ["v"],
+                    message: `Invalid version ${version}, expected one of: ${supportedVersions.join(", ")}`,
+                    input: parsedData.data,
+                    values: supportedVersions,
+                }])
+            }
         }
 
-        currentData = result.data
-        lastResult = result;
-
+        let currentData = parsedData.data;
+        let lastResult: z.ZodSafeParseResult<any> | undefined;
+        for (let i = startIndex + 1; i <= lastIndex; i++) {
+            const handler = handlers[i];
+            fromVersion = handlers[i - 1].v;
+            toVersion = handler.v;
+            if (handler.up) currentData = handler.up(currentData);
+            const result = handler.schema.safeParse(currentData);
+            if (!result.success || i === lastIndex) return result;
+            currentData = result.data
+            lastResult = result;
+        }
+        return lastResult!;
+    } catch (cause) {
+        const detail = cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "Unexpected exception";
+        const transition = fromVersion === undefined ? "" : ` from version ${fromVersion} to ${toVersion}`;
+        const error = new z.ZodError([{
+            code: "custom",
+            path: [],
+            message: `Migration${transition} failed: ${detail}`,
+            params: { fromVersion, toVersion },
+        }]);
+        Object.defineProperty(error, "cause", { value: cause, configurable: true });
+        return { success: false, error };
     }
-
-    return lastResult!;
 }
 
 export const isInvalidVersionType = (error: z.ZodError<any>) => {
